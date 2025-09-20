@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Fum Calendar Extractor",
+  "version": "1.0.2",
+  "description": "Extract course data from Ferdowsi University portal and generate Google Calendar links",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://pooya.um.ac.ir/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://pooya.um.ac.ir/*"],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "Fum Calendar Extractor",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/*"],
+      "matches": ["*://pooya.um.ac.ir/*"]
+    }
+  ]
+}

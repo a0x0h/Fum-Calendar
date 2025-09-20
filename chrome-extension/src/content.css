@@ -1,0 +1,56 @@
+/* Content script styles for Fum Calendar Extractor */
+
+#fum-extract-btn {
+    font-family: 'Tahoma', sans-serif !important;
+    font-size: 12px !important;
+    transition: all 0.3s ease;
+}
+
+#fum-extract-btn:hover {
+    background: #45a049 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+
+.fum-course-highlight {
+    outline: 2px solid #4CAF50;
+    background-color: rgba(76, 175, 80, 0.1) !important;
+}
+
+.fum-notification {
+    font-family: 'Tahoma', sans-serif !important;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Style for course cells that have been processed */
+.fum-processed-course {
+    position: relative;
+}
+
+.fum-processed-course::after {
+    content: '✓';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: #4CAF50;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}

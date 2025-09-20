@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استخراج برنامه درسی</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <span class="icon">📅</span>
+                <h1>برنامه درسی فردوسی</h1>
+            </div>
+            <button id="refreshBtn" class="refresh-btn" title="بروزرسانی">🔄</button>
+        </header>
+
+        <div class="actions">
+            <button id="extractBtn" class="btn btn-primary">
+                <span class="icon">📊</span>
+                استخراج دروس
+            </button>
+            <button id="exportBtn" class="btn btn-secondary">
+                <span class="icon">📤</span>
+                خروجی JSON
+            </button>
+        </div>
+
+        <div class="status" id="status">
+            <div class="status-item">
+                <span class="label">تعداد دروس:</span>
+                <span class="value" id="courseCount">0</span>
+            </div>
+            <div class="status-item">
+                <span class="label">آخرین بروزرسانی:</span>
+                <span class="value" id="lastUpdate">-</span>
+            </div>
+        </div>
+
+        <div class="courses-section">
+            <div class="section-header">
+                <h2>لیست دروس</h2>
+                <button id="addAllBtn" class="btn btn-success btn-small">
+                    افزودن همه به تقویم
+                </button>
+            </div>
+            
+            <div class="courses-container" id="coursesContainer">
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">📚</div>
+                    <p>هیچ درسی استخراج نشده است</p>
+                    <p class="empty-hint">برای شروع روی دکمه "استخراج دروس" کلیک کنید</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Edit Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>ویرایش درس</h3>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>نام درس:</label>
+                    <input type="text" id="editName" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>استاد:</label>
+                    <input type="text" id="editInstructor" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>زمان:</label>
+                    <input type="text" id="editTime" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>مکان:</label>
+                    <input type="text" id="editLocation" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>روز:</label>
+                    <select id="editDay" class="form-input">
+                        <option value="شنبه">شنبه</option>
+                        <option value="یکشنبه">یکشنبه</option>
+                        <option value="دوشنبه">دوشنبه</option>
+                        <option value="سه‌شنبه">سه‌شنبه</option>
+                        <option value="چهارشنبه">چهارشنبه</option>
+                        <option value="پنج‌شنبه">پنج‌شنبه</option>
+                        <option value="جمعه">جمعه</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>توضیحات:</label>
+                    <textarea id="editDetails" class="form-input" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveEdit" class="btn btn-primary">ذخیره</button>
+                <button id="cancelEdit" class="btn btn-secondary">انصراف</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

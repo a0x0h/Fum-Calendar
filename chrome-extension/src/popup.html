@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقویم دانشگاه فردوسی</title>
+    <link rel="stylesheet" href="popup.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-calendar-alt"></i>
+                <span>تقویم فردوسی</span>
+            </div>
+            <div class="status" id="status">
+                <span class="status-dot"></span>
+                <span class="status-text">آماده</span>
+            </div>
+        </header>
+
+        <!-- Main Controls -->
+        <div class="controls-section">
+            <button class="btn btn-primary" id="autoExtractBtn">
+                <i class="fas fa-magic"></i>
+                <span>استخراج هوشمند دروس</span>
+                <div class="btn-subtitle">استخراج خودکار از پرتال</div>
+            </button>
+            
+            <button class="btn btn-secondary" id="manualExtractBtn">
+                <i class="fas fa-search"></i>
+                <span>استخراج دستی</span>
+            </button>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container" id="progressContainer" style="display: none;">
+            <div class="progress-header">
+                <span id="progressText">در حال پردازش...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- Course List -->
+        <div class="courses-section" id="coursesSection">
+            <div class="section-header">
+                <h3>
+                    <i class="fas fa-book-open"></i>
+                    دروس استخراج شده
+                    <span class="course-count" id="courseCount">0</span>
+                </h3>
+                <div class="actions">
+                    <button class="btn-icon" id="refreshBtn" title="تازه‌سازی">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="btn-icon" id="clearBtn" title="پاک کردن همه">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="courses-list" id="coursesList">
+                <div class="empty-state" id="emptyState">
+                    <i class="fas fa-graduation-cap"></i>
+                    <h4>هنوز درسی استخراج نشده</h4>
+                    <p>برای شروع، روی دکمه "استخراج هوشمند دروس" کلیک کنید</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Options -->
+        <div class="export-section" id="exportSection" style="display: none;">
+            <div class="section-header">
+                <h3>
+                    <i class="fas fa-download"></i>
+                    خروجی و انتقال
+                </h3>
+            </div>
+            
+            <div class="export-grid">
+                <button class="export-btn" id="exportGoogleBtn">
+                    <i class="fab fa-google"></i>
+                    <div>
+                        <div class="export-title">Google Calendar</div>
+                        <div class="export-desc">انتقال به تقویم گوگل</div>
+                    </div>
+                </button>
+                
+                <button class="export-btn" id="exportICSBtn">
+                    <i class="fas fa-file-export"></i>
+                    <div>
+                        <div class="export-title">فایل ICS</div>
+                        <div class="export-desc">دانلود فایل تقویم</div>
+                    </div>
+                </button>
+                
+                <button class="export-btn" id="exportJSONBtn">
+                    <i class="fas fa-code"></i>
+                    <div>
+                        <div class="export-title">JSON</div>
+                        <div class="export-desc">خروجی ساختار یافته</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="settings-section">
+            <button class="settings-toggle" id="settingsToggle">
+                <i class="fas fa-cog"></i>
+                <span>تنظیمات</span>
+                <i class="fas fa-chevron-down toggle-icon"></i>
+            </button>
+            
+            <div class="settings-panel" id="settingsPanel">
+                <div class="setting-item">
+                    <label class="setting-label">
+                        <input type="checkbox" id="autoDetailExtract" checked>
+                        <span class="checkmark"></span>
+                        استخراج خودکار جزئیات طرح درس
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">
+                        <input type="checkbox" id="includeOddEven" checked>
+                        <span class="checkmark"></span>
+                        شامل کردن هفته‌های فرد/زوج
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">
+                        تنظیم سال تحصیلی:
+                        <select id="academicYear" class="setting-select">
+                            <option value="1404-1405">1404-1405</option>
+                            <option value="1403-1404">1403-1404</option>
+                            <option value="1405-1406">1405-1406</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-info">
+                <span>Version 2.0.1</span>
+                <span>•</span>
+                <span>Abolfazl Hosseini</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
