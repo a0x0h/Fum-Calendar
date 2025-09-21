@@ -101,6 +101,27 @@ class FumCalendarModernPopup {
                 });
             }
             
+            // Set up event delegation for dynamically created course action buttons
+            document.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-action]');
+                if (!button) return;
+                
+                const action = button.getAttribute('data-action');
+                const courseId = button.getAttribute('data-course-id');
+                
+                switch (action) {
+                    case 'extractDetail':
+                        this.extractCourseDetail(courseId);
+                        break;
+                    case 'addToCalendar':
+                        this.addToGoogleCalendar(courseId);
+                        break;
+                    case 'removeCourse':
+                        this.removeCourse(courseId);
+                        break;
+                }
+            });
+            
             console.log('Event listeners setup completed');
         } catch (error) {
             console.error('Error setting up event listeners:', error);
@@ -413,15 +434,15 @@ class FumCalendarModernPopup {
             </div>
             <div class="course-actions">
                 <button class="btn-icon ${hasDetails ? 'success' : 'primary'}" 
-                        onclick="fumPopup.extractCourseDetail('${course.id || index}')" 
+                        data-action="extractDetail" data-course-id="${course.id || index}"
                         title="${hasDetails ? 'بروزرسانی جزئیات' : 'استخراج جزئیات از طرح درس'}">
                     <i class="fas fa-book-open"></i>
                 </button>
-                <button class="btn-icon" onclick="fumPopup.addToGoogleCalendar('${course.id || index}')" 
+                <button class="btn-icon" data-action="addToCalendar" data-course-id="${course.id || index}"
                         title="افزودن به Google Calendar">
                     <i class="fab fa-google"></i>
                 </button>
-                <button class="btn-icon danger" onclick="fumPopup.removeCourse('${course.id || index}')" 
+                <button class="btn-icon danger" data-action="removeCourse" data-course-id="${course.id || index}"
                         title="حذف درس">
                     <i class="fas fa-trash-alt"></i>
                 </button>
@@ -646,7 +667,112 @@ class FumCalendarModernPopup {
         }
     }
 
-    // ... other methods continue here (exportToGoogle, exportToICS, etc.)
+    // Export Methods
+    async exportToGoogle() {
+        if (this.courses.length === 0) {
+            this.showNotification('هیچ درسی برای صادرات وجود ندارد', 'warning');
+            return;
+        }
+        
+        try {
+            // Generate multiple calendar links for all courses
+            let linksOpened = 0;
+            for (const course of this.courses.slice(0, 5)) { // Limit to 5 to avoid popup blocking
+                const link = this.generateAdvancedCalendarLink(course);
+                window.open(link, '_blank');
+                linksOpened++;
+                await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between opens
+            }
+            
+            this.showNotification(`${linksOpened} درس در Google Calendar باز شد`, 'success');
+        } catch (error) {
+            console.error('Export to Google error:', error);
+            this.showNotification('خطا در صادرات به Google Calendar', 'error');
+        }
+    }
+    
+    async exportToICS() {
+        if (this.courses.length === 0) {
+            this.showNotification('هیچ درسی برای صادرات وجود ندارد', 'warning');
+            return;
+        }
+        
+        try {
+            const icsContent = this.generateICSContent();
+            const blob = new Blob([icsContent], { type: 'text/calendar' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fum-calendar.ics';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.showNotification('فایل ICS دانلود شد', 'success');
+        } catch (error) {
+            console.error('Export to ICS error:', error);
+            this.showNotification('خطا در صادرات فایل ICS', 'error');
+        }
+    }
+    
+    async exportToJSON() {
+        if (this.courses.length === 0) {
+            this.showNotification('هیچ درسی برای صادرات وجود ندارد', 'warning');
+            return;
+        }
+        
+        try {
+            const jsonContent = JSON.stringify(this.courses, null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fum-courses.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.showNotification('فایل JSON دانلود شد', 'success');
+        } catch (error) {
+            console.error('Export to JSON error:', error);
+            this.showNotification('خطا در صادرات فایل JSON', 'error');
+        }
+    }
+    
+    generateICSContent() {
+        let icsContent = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Fum Calendar Extractor//EN',
+            'CALSCALE:GREGORIAN',
+            ''
+        ].join('\r\n');
+        
+        this.courses.forEach(course => {
+            const now = new Date();
+            const eventId = `${course.name}-${Date.now()}@fum-calendar`;
+            
+            icsContent += [
+                'BEGIN:VEVENT',
+                `UID:${eventId}`,
+                `DTSTAMP:${this.formatICSDate(now)}`,
+                `SUMMARY:${course.name}`,
+                `DESCRIPTION:استاد: ${course.teacher}\\nمکان: ${course.location}`,
+                `LOCATION:${course.location}`,
+                'END:VEVENT',
+                ''
+            ].join('\r\n');
+        });
+        
+        icsContent += 'END:VCALENDAR\r\n';
+        return icsContent;
+    }
+
+    // Settings and UI Methods
 
     toggleSettings() {
         const toggle = document.getElementById('settingsToggle');

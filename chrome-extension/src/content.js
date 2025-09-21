@@ -17,43 +17,53 @@ class FumCalendarExtractor {
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             console.log('Content script received message:', request.action);
             
-            const handleAsyncResponse = async (asyncFunction) => {
-                try {
-                    const result = await asyncFunction();
-                    sendResponse(result);
-                } catch (error) {
-                    console.error('Async handler error:', error);
-                    sendResponse({ success: false, error: error.message });
-                }
-            };
-            
             switch (request.action) {
                 case 'extractCourses':
-                    handleAsyncResponse(async () => {
-                        const courses = await this.extractCourses();
-                        console.log('Sending extracted courses:', courses.length);
-                        return { courses: courses, success: true };
-                    });
-                    return true;
+                    this.extractCourses()
+                        .then(courses => {
+                            console.log('Sending extracted courses:', courses.length);
+                            sendResponse({ courses: courses, success: true });
+                        })
+                        .catch(error => {
+                            console.error('Extract courses error:', error);
+                            sendResponse({ success: false, error: error.message });
+                        });
+                    return true; // Keep message channel open
                     
                 case 'autoExtractWithDetails':
-                    handleAsyncResponse(async () => {
-                        const courses = await this.autoExtractWithDetails();
-                        console.log('Auto extract completed:', courses.length);
-                        return { courses: courses, success: true };
-                    });
-                    return true;
+                    Promise.resolve(this.autoExtractWithDetails())
+                        .then(courses => {
+                            console.log('Auto extract completed:', courses.length);
+                            try {
+                                sendResponse({ courses: courses, success: true });
+                            } catch (responseError) {
+                                console.error('Error sending response:', responseError);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Auto extract error:', error);
+                            try {
+                                sendResponse({ success: false, error: error.message });
+                            } catch (responseError) {
+                                console.error('Error sending error response:', responseError);
+                            }
+                        });
+                    return true; // Keep message channel open
                     
                 case 'getCourses':
                     sendResponse({ courses: this.courses, success: true });
                     return false;
                     
                 case 'extractCourseDetail':
-                    handleAsyncResponse(async () => {
-                        const details = await this.extractCourseDetail(request.courseId);
-                        return { details: details, success: true };
-                    });
-                    return true;
+                    this.extractCourseDetail(request.courseId)
+                        .then(details => {
+                            sendResponse({ details: details, success: true });
+                        })
+                        .catch(error => {
+                            console.error('Extract detail error:', error);
+                            sendResponse({ success: false, error: error.message });
+                        });
+                    return true; // Keep message channel open
                     
                 case 'generateCalendarLink':
                     try {
@@ -164,7 +174,7 @@ class FumCalendarExtractor {
         // Look for specific Ferdowsi schedule indicators
         const text = table.textContent;
         const hasTimeHeaders = text.includes('6') && text.includes('7') && text.includes('8'); // Hour columns
-        const hasDays = ['شنبه', 'یکشنبه', 'دوشنبه', 'چهارشنبه', 'پنج‌شنبه'].some(day => text.includes(day));
+        const hasDays = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه شنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'].some(day => text.includes(day));
         const hasYellowCells = table.querySelector('td[bgcolor="#FFF3CD"], td[style*="FFF3CD"]');
         
         console.log('جدول چک:', { hasTimeHeaders, hasDays, hasYellowCells });
@@ -174,7 +184,7 @@ class FumCalendarExtractor {
     async extractFromFerdowsiScheduleTable(table, doc) {
         console.log('استخراج از جدول فردوسی');
         const rows = table.querySelectorAll('tr');
-        const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+        const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه شنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
         const timeHeaders = ['6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'];
         
         // Process each row to find course data
@@ -182,24 +192,59 @@ class FumCalendarExtractor {
             const row = rows[rowIndex];
             const cells = row.querySelectorAll('td, th');
             
-            // Find the day cell
+            // Find the day cell - usually the first cell in the row
             let currentDay = '';
             const dayCell = cells[0];
             if (dayCell) {
                 const dayText = dayCell.textContent.trim();
-                currentDay = days.find(day => dayText.includes(day)) || '';
+                console.log(`Checking day cell text: "${dayText}"`);
+                
+                // Try to match any of the day names
+                for (const day of days) {
+                    if (dayText.includes(day)) {
+                        currentDay = day;
+                        console.log(`Found day: ${currentDay}`);
+                        break;
+                    }
+                }
+                
+                // If no day found, try partial matching for rowspan cells
+                if (!currentDay) {
+                    // Check if this row continues from previous row (rowspan)
+                    const previousRows = Array.from(rows).slice(Math.max(0, rowIndex - 3), rowIndex);
+                    for (const prevRow of previousRows.reverse()) {
+                        const prevDayCell = prevRow.querySelector('td[rowspan], th[rowspan]');
+                        if (prevDayCell) {
+                            const prevDayText = prevDayCell.textContent.trim();
+                            for (const day of days) {
+                                if (prevDayText.includes(day)) {
+                                    currentDay = day;
+                                    console.log(`Found day from previous rowspan: ${currentDay}`);
+                                    break;
+                                }
+                            }
+                            if (currentDay) break;
+                        }
+                    }
+                }
             }
             
-            if (!currentDay) continue;
+            console.log(`Row ${rowIndex}: Day = ${currentDay || 'not found'}`);
             
-            // Process each cell in the row for course data
+            if (!currentDay) {
+                console.warn(`No day found for row ${rowIndex}, skipping...`);
+                continue;
+            }
+            
+            // Process each cell in the row for course data (skip first cell which is the day)
             for (let cellIndex = 1; cellIndex < cells.length; cellIndex++) {
                 const cell = cells[cellIndex];
                 const bgColor = cell.getAttribute('bgcolor') || cell.style.backgroundColor;
                 
                 // Look for course cells (usually have yellow background #FFF3CD)
-                if (bgColor === '#FFF3CD' || bgColor.includes('FFF3CD')) {
+                if (bgColor === '#FFF3CD' || bgColor.includes('FFF3CD') || bgColor === '#fff3cd') {
                     const timeSlot = this.calculateTimeFromCellPosition(cellIndex, timeHeaders);
+                    console.log(`Found course cell at ${currentDay} ${timeSlot}`);
                     await this.extractFerdowsiCourseFromCell(cell, currentDay, timeSlot, doc);
                 }
             }
@@ -249,6 +294,15 @@ class FumCalendarExtractor {
 
         console.log(`استخراج از سلول: ${day} ${time}`, text.substring(0, 100));
 
+        // Debug: Check what day is being passed
+        if (!day || day === '') {
+            console.warn('Day is empty, trying to extract from cell position...');
+            const { day: cellDay, time: cellTime } = this.findDayAndTimeFromCell(cell);
+            day = cellDay || 'نامشخص';
+            time = cellTime || time;
+            console.log(`Day extracted from cell position: ${day}, ${time}`);
+        }
+
         // Clean the text by removing HTML artifacts and extra whitespace
         const cleanText = text
             .replace(/=D[0-9A-F]{1,2}/g, '') // Remove HTML encoding artifacts
@@ -261,6 +315,7 @@ class FumCalendarExtractor {
             if (course) {
                 course.day = day;
                 course.time = time;
+                console.log(`درس اضافه شد با روز: ${day} و ساعت: ${time}`);
                 this.addCourse(course);
             }
         }
@@ -377,7 +432,7 @@ class FumCalendarExtractor {
     findDayAndTimeFromCell(cell) {
         const table = cell.closest('table');
         const row = cell.closest('tr');
-        const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+        const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه شنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
         
         let day = '';
         let time = '';
@@ -477,18 +532,28 @@ class FumCalendarExtractor {
             }
 
             const timeout = setTimeout(() => {
+                cleanup();
                 reject(new Error('Iframe load timeout'));
             }, 5000);
 
-            iframe.onload = () => {
+            const cleanup = () => {
+                iframe.removeEventListener('load', handleLoad);
+                iframe.removeEventListener('error', handleError);
                 clearTimeout(timeout);
+            };
+
+            const handleLoad = () => {
+                cleanup();
                 setTimeout(resolve, 100); // Small delay to ensure content is ready
             };
 
-            iframe.onerror = () => {
-                clearTimeout(timeout);
+            const handleError = () => {
+                cleanup();
                 reject(new Error('Iframe load error'));
             };
+
+            iframe.addEventListener('load', handleLoad);
+            iframe.addEventListener('error', handleError);
         });
     }
 
@@ -520,33 +585,25 @@ class FumCalendarExtractor {
             
             // Check if we're already on the schedule page
             const currentUrl = window.location.href;
-            const scheduleUrl = 'https://pooya.um.ac.ir/educ/educfac/ShowStSchedule.php';
             
+            // Don't navigate if already on correct page to avoid closing message channel
             if (!currentUrl.includes('ShowStSchedule.php')) {
-                // Navigate to schedule page
-                console.log('جابجایی به صفحه برنامه هفتگی...');
-                window.location.href = scheduleUrl;
-                
-                // Wait for navigation to complete
-                await new Promise(resolve => {
-                    const checkNavigation = () => {
-                        if (window.location.href.includes('ShowStSchedule.php')) {
-                            resolve();
-                        } else {
-                            setTimeout(checkNavigation, 100);
-                        }
-                    };
-                    checkNavigation();
-                });
+                console.log('صفحه فعلی برنامه هفتگی نیست. لطفاً به صفحه برنامه هفتگی بروید.');
+                throw new Error('لطفاً ابتدا به صفحه برنامه هفتگی دانشگاه بروید');
             }
             
-            // Extract courses from schedule page
-            await this.extractCourses();
+            // Extract courses from schedule page with timeout
+            const extractPromise = this.extractCourses();
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('استخراج دروس زمان زیادی طول کشید')), 15000)
+            );
+            
+            await Promise.race([extractPromise, timeoutPromise]);
             
             // Add basic details for each course to avoid popup issues
             if (this.courses.length > 0) {
                 console.log('اضافه کردن جزئیات پایه برای', this.courses.length, 'درس');
-                for (let i = 0; i < this.courses.length; i++) {
+                for (let i = 0; i < this.courses.length && i < 10; i++) { // Limit to 10 courses to prevent timeout
                     const course = this.courses[i];
                     try {
                         // Add basic course details without opening popups
@@ -691,40 +748,66 @@ class FumCalendarExtractor {
         }
     }
 
-    // Extract data from course detail page
+    // Extract data from course detail page (طرح درس)
     async extractFromDetailPage(url) {
         return new Promise((resolve, reject) => {
+            console.log('Opening course detail page:', url);
+            
             // Open detail page in a new window
-            const detailWindow = window.open(url, '_blank', 'width=800,height=600');
+            const detailWindow = window.open(url, '_blank', 'width=900,height=700');
             
             if (!detailWindow) {
                 reject(new Error('امکان باز کردن صفحه جزئیات وجود ندارد'));
                 return;
             }
             
-            // Wait for page to load and extract data
+            // Wait for page to load and extract comprehensive data
             const extractData = () => {
                 try {
                     const doc = detailWindow.document;
+                    console.log('Extracting course details from:', doc.title);
                     
-                    // Extract course details from the page
+                    // Extract comprehensive course details
                     const details = {
-                        title: this.extractDetailText(doc, ['عنوان درس', 'نام درس']),
-                        code: this.extractDetailText(doc, ['کد درس']),
-                        credits: this.extractDetailText(doc, ['تعداد واحد', 'واحد']),
-                        prerequisites: this.extractDetailText(doc, ['پیش نیاز', 'پیشنیاز']),
-                        corequisites: this.extractDetailText(doc, ['هم نیاز', 'هم‌نیاز']),
-                        evaluation: this.extractDetailText(doc, ['نحوه ارزشیابی', 'ارزشیابی']),
-                        syllabus: this.extractDetailText(doc, ['سرفصل', 'محتوای درس', 'سیلابس']),
-                        resources: this.extractDetailText(doc, ['منابع', 'کتاب', 'مرجع']),
-                        objectives: this.extractDetailText(doc, ['اهداف', 'هدف'])
+                        // Basic info
+                        title: this.extractFromDetailTable(doc, 'عنوان') || this.extractTableText(doc, 0),
+                        instructor: this.extractFromDetailTable(doc, 'نام استاد'),
+                        department: this.extractFromDetailTable(doc, 'دانشکده'),
+                        courseType: this.extractFromDetailTable(doc, 'نوع درس'),
+                        academicYear: this.extractFromDetailTable(doc, 'سال تحصیلی'),
+                        credits: this.extractFromDetailTable(doc, 'تعداد واحد'),
+                        
+                        // Class schedule and location
+                        classSchedule: this.extractClassSchedule(doc),
+                        
+                        // Course structure
+                        coursePosition: this.extractFromDetailTable(doc, 'جایگاه درس در برنامه درسی دوره'),
+                        generalObjective: this.extractFromDetailTable(doc, 'هدف کلی'),
+                        prerequisites: this.extractFromDetailTable(doc, 'شایستگی های پایه'),
+                        
+                        // Resources and materials
+                        mainResources: this.extractFromDetailTable(doc, 'منابع اصلی درس'),
+                        assistantResources: this.extractFromDetailTable(doc, 'منابع کمکی درس'),
+                        teachingMaterials: this.extractFromDetailTable(doc, 'مواد و امکانات آموزشی'),
+                        
+                        // Evaluation
+                        evaluation: this.extractEvaluationMethod(doc),
+                        
+                        // Session schedule with dates
+                        sessionSchedule: this.extractSessionSchedule(doc),
+                        
+                        // Student assignments
+                        studentTasks: this.extractFromDetailTable(doc, 'وظایف دانشجو') || this.extractFromDetailTable(doc, 'تکالیف دانشجو')
                     };
+                    
+                    console.log('Extracted course details:', details);
                     
                     // Close the detail window
                     detailWindow.close();
                     
                     resolve(details);
                 } catch (error) {
+                    console.error('Error extracting course details:', error);
                     detailWindow.close();
                     reject(error);
                 }
@@ -732,7 +815,7 @@ class FumCalendarExtractor {
             
             // Wait for page to load
             detailWindow.addEventListener('load', () => {
-                setTimeout(extractData, 1000); // Give it a moment to fully render
+                setTimeout(extractData, 2000); // Give it time to fully render
             });
             
             // Timeout fallback
@@ -741,7 +824,7 @@ class FumCalendarExtractor {
                     detailWindow.close();
                 }
                 reject(new Error('تایم اوت در بارگذاری صفحه جزئیات'));
-            }, 10000);
+            }, 15000);
         });
     }
 
@@ -778,6 +861,152 @@ class FumCalendarExtractor {
         return '';
     }
 
+    // Extract information from detail page tables
+    extractFromDetailTable(doc, keyword) {
+        const rows = doc.querySelectorAll('tr');
+        for (const row of rows) {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 2) {
+                const firstCell = cells[0].textContent.trim();
+                if (firstCell.includes(keyword)) {
+                    return cells[1].textContent.trim();
+                }
+            }
+        }
+        return '';
+    }
+
+    // Extract class schedule (multiple sessions with days/times)
+    extractClassSchedule(doc) {
+        const scheduleInfo = {};
+        
+        // Look for the schedule section
+        const scheduleSection = this.findElementContaining(doc, 'زمان و محل برگزاري كلاس');
+        if (scheduleSection) {
+            const scheduleText = scheduleSection.textContent;
+            
+            // Extract first session
+            const firstSessionMatch = scheduleText.match(/جلسه اول روز\s*:\s*([^(]+)\(([^)]+)\)\s*([^<\n]+)/);
+            if (firstSessionMatch) {
+                scheduleInfo.session1 = {
+                    day: firstSessionMatch[1].trim(),
+                    details: firstSessionMatch[2].trim(),
+                    location: firstSessionMatch[3].trim()
+                };
+            }
+            
+            // Extract second session
+            const secondSessionMatch = scheduleText.match(/جلسه دوم روز\s*:\s*([^(]+)\(([^)]+)\)\s*([^<\n]+)/);
+            if (secondSessionMatch) {
+                scheduleInfo.session2 = {
+                    day: secondSessionMatch[1].trim(),
+                    details: secondSessionMatch[2].trim(),
+                    location: secondSessionMatch[3].trim()
+                };
+            }
+        }
+        
+        return scheduleInfo;
+    }
+
+    // Extract evaluation method with detailed breakdown
+    extractEvaluationMethod(doc) {
+        const evaluationText = this.extractFromDetailTable(doc, 'نحوه ارزشیابی');
+        if (!evaluationText) return '';
+        
+        // Parse the evaluation components
+        const components = [];
+        const lines = evaluationText.split(/\n|\d+\)/);
+        
+        for (const line of lines) {
+            if (line.trim() && line.includes(':')) {
+                const [method, score] = line.split(':');
+                components.push({
+                    method: method.trim(),
+                    score: score.trim()
+                });
+            }
+        }
+        
+        return {
+            raw: evaluationText,
+            components: components
+        };
+    }
+
+    // Extract session schedule with dates
+    extractSessionSchedule(doc) {
+        const sessions = [];
+        
+        // Find the syllabus table
+        const syllabusTable = this.findTableByCaption(doc, 'سرفصل مطالب');
+        if (syllabusTable) {
+            const rows = syllabusTable.querySelectorAll('tbody tr');
+            
+            for (const row of rows) {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 2) {
+                    const topic = cells[0].textContent.trim();
+                    const date = cells[1].textContent.trim();
+                    
+                    if (topic && date && date !== '--') {
+                        sessions.push({
+                            topic: topic,
+                            date: date,
+                            persianDate: this.convertGregorianToPersian(date)
+                        });
+                    }
+                }
+            }
+        }
+        
+        return sessions;
+    }
+
+    // Helper method to find element containing specific text
+    findElementContaining(doc, text) {
+        const elements = doc.querySelectorAll('td, div, span');
+        for (const element of elements) {
+            if (element.textContent.includes(text)) {
+                return element;
+            }
+        }
+        return null;
+    }
+
+    // Helper method to find table by caption
+    findTableByCaption(doc, caption) {
+        const tables = doc.querySelectorAll('table');
+        for (const table of tables) {
+            const tableCaption = table.querySelector('caption');
+            if (tableCaption && tableCaption.textContent.includes(caption)) {
+                return table;
+            }
+        }
+        return null;
+    }
+
+    // Convert Gregorian date to Persian (placeholder for now)
+    convertGregorianToPersian(gregorianDate) {
+        // This is a simplified conversion - you may want to use a proper date library
+        return gregorianDate; // For now, return as is
+    }
+
+    // Extract table text by index (fallback method)
+    extractTableText(doc, tableIndex) {
+        const tables = doc.querySelectorAll('table');
+        if (tables[tableIndex]) {
+            const firstRow = tables[tableIndex].querySelector('tr');
+            if (firstRow) {
+                const cells = firstRow.querySelectorAll('td, th');
+                if (cells.length > 0) {
+                    return cells[0].textContent.trim();
+                }
+            }
+        }
+        return '';
+    }
+
     // Helper method to get setting values
     async getSettingValue(key, defaultValue) {
         try {
@@ -793,44 +1022,212 @@ class FumCalendarExtractor {
         const baseUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
         
         try {
-            // Parse Persian date to Gregorian
-            const startDate = this.parseJalaliScheduleDate(course.day, course.time);
-            const endDate = new Date(startDate.getTime() + 90 * 60000); // 90 minutes later
+            // Handle multiple sessions if available
+            const sessions = this.extractSessionsFromCourse(course);
+            const calendarEvents = [];
             
-            // Create event description with course details
-            let description = `استاد: ${course.teacher}\\nمکان: ${course.location}`;
-            if (course.credits) {
-                description += `\\nتعداد واحد: ${course.credits}`;
-            }
-            if (course.courseDetails) {
-                if (course.courseDetails.evaluation) {
-                    description += `\\nارزشیابی: ${course.courseDetails.evaluation}`;
-                }
-                if (course.courseDetails.syllabus) {
-                    description += `\\nسرفصل: ${course.courseDetails.syllabus.substring(0, 100)}...`;
-                }
-            }
-            
-            const params = new URLSearchParams({
-                text: course.name,
-                dates: `${this.formatGoogleDate(startDate)}/${this.formatGoogleDate(endDate)}`,
-                details: description,
-                location: course.location,
-                recur: `RRULE:FREQ=WEEKLY${course.recurrence.includes('INTERVAL=2') ? ';INTERVAL=2' : ''}`
-            });
+            for (const session of sessions) {
+                const startDate = this.parseJalaliScheduleDate(session.day, session.time);
+                const endDate = new Date(startDate.getTime() + 90 * 60000); // 90 minutes later
+                
+                // Create comprehensive event description
+                let description = this.buildEventDescription(course, session);
+                
+                const params = new URLSearchParams({
+                    text: `${course.name} - ${session.day}`,
+                    dates: `${this.formatGoogleDate(startDate)}/${this.formatGoogleDate(endDate)}`,
+                    details: description,
+                    location: session.location || course.location,
+                    recur: this.buildRecurrenceRule(session, course)
+                });
 
-            return `${baseUrl}&${params.toString()}`;
+                calendarEvents.push(`${baseUrl}&${params.toString()}`);
+            }
+            
+            // Return the first event link (or create a general one if no specific sessions)
+            return calendarEvents.length > 0 ? calendarEvents[0] : this.createFallbackCalendarLink(course);
+            
         } catch (error) {
             console.error('خطا در تولید لینک Google Calendar:', error);
-            return null;
+            return this.createFallbackCalendarLink(course);
         }
+    }
+
+    // Extract sessions from course (handle multiple sessions per week)
+    extractSessionsFromCourse(course) {
+        const sessions = [];
+        
+        // Check if course has detailed class schedule
+        if (course.courseDetails?.classSchedule) {
+            const schedule = course.courseDetails.classSchedule;
+            
+            // Add first session
+            if (schedule.session1) {
+                sessions.push({
+                    day: this.extractDayFromDetails(schedule.session1.day),
+                    time: this.extractTimeFromDetails(schedule.session1.details),
+                    location: schedule.session1.location,
+                    duration: this.extractDurationFromDetails(schedule.session1.details),
+                    frequency: this.extractFrequencyFromDetails(schedule.session1.details),
+                    isOddWeek: schedule.session1.details.includes('شروع فرد'),
+                    isEvenWeek: schedule.session1.details.includes('شروع زوج')
+                });
+            }
+            
+            // Add second session
+            if (schedule.session2) {
+                sessions.push({
+                    day: this.extractDayFromDetails(schedule.session2.day),
+                    time: this.extractTimeFromDetails(schedule.session2.details),
+                    location: schedule.session2.location,
+                    duration: this.extractDurationFromDetails(schedule.session2.details),
+                    frequency: this.extractFrequencyFromDetails(schedule.session2.details),
+                    isOddWeek: schedule.session2.details.includes('شروع فرد'),
+                    isEvenWeek: schedule.session2.details.includes('شروع زوج')
+                });
+            }
+        }
+        
+        // Fallback: use basic course info
+        if (sessions.length === 0) {
+            sessions.push({
+                day: course.day,
+                time: course.time,
+                location: course.location,
+                duration: 90,
+                frequency: 'WEEKLY',
+                isOddWeek: course.isOddWeek,
+                isEvenWeek: course.isEvenWeek
+            });
+        }
+        
+        return sessions;
+    }
+
+    // Build comprehensive event description with HTML formatting
+    buildEventDescription(course, session) {
+        let description = '';
+        
+        // Basic course info
+        description += `<b>نام درس:</b> ${course.originalName || course.name}\\n`;
+        description += `<b>استاد:</b> ${course.teacher}\\n`;
+        description += `<b>تعداد واحد:</b> ${course.credits || 'نامشخص'}\\n`;
+        description += `<b>مکان:</b> ${session.location}\\n\\n`;
+        
+        // Add detailed course information if available
+        if (course.courseDetails) {
+            const details = course.courseDetails;
+            
+            if (details.evaluation?.raw) {
+                description += `<b>نحوه ارزشیابی:</b>\\n${details.evaluation.raw}\\n\\n`;
+            }
+            
+            if (details.mainResources) {
+                description += `<b>منابع اصلی:</b>\\n${details.mainResources}\\n\\n`;
+            }
+            
+            if (details.studentTasks) {
+                description += `<b>وظایف دانشجو:</b>\\n${details.studentTasks}\\n\\n`;
+            }
+            
+            if (details.generalObjective) {
+                description += `<b>هدف کلی درس:</b>\\n${details.generalObjective}\\n\\n`;
+            }
+            
+            // Add session schedule if available
+            if (details.sessionSchedule && details.sessionSchedule.length > 0) {
+                description += `<b>برنامه جلسات:</b>\\n`;
+                for (const sessionInfo of details.sessionSchedule.slice(0, 5)) { // First 5 sessions
+                    description += `${sessionInfo.date}: ${sessionInfo.topic}\\n`;
+                }
+                if (details.sessionSchedule.length > 5) {
+                    description += `... و ${details.sessionSchedule.length - 5} جلسه دیگر\\n`;
+                }
+                description += '\\n';
+            }
+        }
+        
+        // Add session specific info
+        if (session.isOddWeek) description += `⚠️ هفته‌های فرد\\n`;
+        if (session.isEvenWeek) description += `⚠️ هفته‌های زوج\\n`;
+        
+        return description;
+    }
+
+    // Build recurrence rule for Google Calendar
+    buildRecurrenceRule(session, course) {
+        let rule = 'RRULE:FREQ=WEEKLY';
+        
+        // Handle odd/even weeks
+        if (session.isOddWeek || session.isEvenWeek) {
+            rule += ';INTERVAL=2';
+        }
+        
+        // Add end date (end of semester)
+        const semesterEnd = this.getSemesterEndDate();
+        if (semesterEnd) {
+            rule += `;UNTIL=${this.formatGoogleDate(semesterEnd)}`;
+        }
+        
+        return rule;
+    }
+
+    // Get semester end date (placeholder - you may want to make this configurable)
+    getSemesterEndDate() {
+        const now = new Date();
+        const endDate = new Date(now.getFullYear(), 11, 31); // End of year for now
+        return endDate;
+    }
+
+    // Create fallback calendar link for basic course info
+    createFallbackCalendarLink(course) {
+        const baseUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
+        const startDate = this.parseJalaliScheduleDate(course.day, course.time);
+        const endDate = new Date(startDate.getTime() + 90 * 60000);
+        
+        const params = new URLSearchParams({
+            text: course.name,
+            dates: `${this.formatGoogleDate(startDate)}/${this.formatGoogleDate(endDate)}`,
+            details: `استاد: ${course.teacher}\\nمکان: ${course.location}`,
+            location: course.location,
+            recur: 'RRULE:FREQ=WEEKLY'
+        });
+
+        return `${baseUrl}&${params.toString()}`;
+    }
+
+    // Helper methods for extracting session details
+    extractDayFromDetails(dayText) {
+        const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه شنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+        for (const day of days) {
+            if (dayText.includes(day)) {
+                return day;
+            }
+        }
+        return dayText.trim();
+    }
+
+    extractTimeFromDetails(details) {
+        const timeMatch = details.match(/ساعت\s*(\d{1,2})/);
+        return timeMatch ? `${timeMatch[1]}:00` : '';
+    }
+
+    extractDurationFromDetails(details) {
+        const durationMatch = details.match(/(\d+)\s*دقیقه/);
+        return durationMatch ? parseInt(durationMatch[1]) : 90;
+    }
+
+    extractFrequencyFromDetails(details) {
+        if (details.includes('هر هفته')) return 'WEEKLY';
+        if (details.includes('هفته در میان')) return 'WEEKLY;INTERVAL=2';
+        return 'WEEKLY';
     }
 
     // Parse Jalali/Persian date to Gregorian
     parseJalaliScheduleDate(day, time) {
         const now = new Date();
         const dayMap = {
-            'شنبه': 6, 'یکشنبه': 0, 'دوشنبه': 1, 'سه‌شنبه': 2, 
+            'شنبه': 6, 'یکشنبه': 0, 'دوشنبه': 1, 'سه شنبه': 2, 'سه‌شنبه': 2,
             'چهارشنبه': 3, 'پنج‌شنبه': 4, 'جمعه': 5
         };
         

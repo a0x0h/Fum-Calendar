@@ -56,11 +56,24 @@ body {
     font-size: 14px;
     line-height: 1.6;
     color: var(--text-primary);
-    background: var(--bg-primary);
+    background: var(--bg-secondary) !important;
     direction: rtl;
     width: 420px;
+    max-width: 420px;
     min-height: 600px;
     overflow-x: hidden;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Specific fix for courses section visibility */
+.courses-section {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
 }
 
 /* App Container */
@@ -68,7 +81,13 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--bg-secondary);
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 420px;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 /* Header */
@@ -136,14 +155,31 @@ body {
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-md);
     overflow: hidden;
+    display: block !important;
+    position: relative;
+    z-index: 1;
+    min-height: 50px;
+    width: calc(100% - 16px);
+    max-width: calc(420px - 16px);
+    box-sizing: border-box;
 }
 
 /* Controls Section */
 .controls-section {
-    padding: var(--spacing-lg);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
+    padding: var(--spacing-sm);
+    display: block;
+    text-align: center;
+    margin: var(--spacing-sm) auto;
+    box-sizing: border-box;
+    width: calc(100% - 16px);
+    max-width: calc(420px - 16px);
+}
+
+/* Ensure buttons are side by side */
+.controls-section .btn {
+    display: inline-block;
+    margin: 0 4px;
+    vertical-align: top;
 }
 
 /* Button Styles */
@@ -151,45 +187,24 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md) var(--spacing-lg);
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
     border: none;
     border-radius: var(--border-radius-sm);
     font-family: var(--font-primary);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease;
     position: relative;
-    overflow: hidden;
     text-decoration: none;
-    min-height: 48px;
     user-select: none;
-}
-
-.btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.2),
-        transparent
-    );
-    transition: left 0.5s ease;
+    box-shadow: var(--shadow-sm);
 }
 
 .btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-.btn:hover::before {
-    left: 100%;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 .btn:active {
@@ -199,7 +214,7 @@ body {
 
 .btn:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
 .btn:disabled {
@@ -234,39 +249,65 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    background: var(--primary-color);
     color: var(--text-white);
-    flex-direction: column;
-    min-height: 80px;
-    padding: var(--spacing-lg);
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    max-height: 44px;
+    width: 170px;
+    padding: var(--spacing-xs);
+    box-shadow: var(--shadow-sm);
+    box-sizing: border-box;
+    flex-shrink: 0;
+    font-size: 10px;
+    border-radius: var(--border-radius-sm);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    gap: 2px;
+    vertical-align: top;
 }
 
 .btn-primary:hover {
-    box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
-    background: linear-gradient(135deg, var(--primary-hover), var(--primary-color));
-}
-
-.btn-primary:hover {
-    background: linear-gradient(135deg, var(--primary-hover), #1e40af);
+    background: var(--primary-hover);
+    box-shadow: var(--shadow-md);
 }
 
 .btn-secondary {
     background: var(--bg-tertiary);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    max-height: 44px;
+    width: 120px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    font-size: 10px;
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    gap: 2px;
+    vertical-align: top;
 }
 
 .btn-secondary:hover {
     background: var(--secondary-color);
     color: var(--text-white);
+    border-color: var(--secondary-color);
 }
 
 .btn-subtitle {
-    font-size: 12px;
-    opacity: 0.9;
-    font-weight: 400;
-    margin-top: var(--spacing-xs);
+    display: none !important;
+    visibility: hidden !important;
 }
 
 .btn-icon {
@@ -349,20 +390,26 @@ body {
 
 /* Section Headers */
 .section-header {
-    display: flex;
+    display: flex !important;
     justify-content: space-between;
     align-items: center;
     padding: var(--spacing-lg);
     border-bottom: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    position: relative;
+    z-index: 3;
+    min-height: 60px;
 }
 
 .section-header h3 {
-    display: flex;
+    display: flex !important;
     align-items: center;
     gap: var(--spacing-sm);
     font-size: 16px;
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .section-header h3 i {
@@ -370,13 +417,15 @@ body {
 }
 
 .course-count {
-    background: var(--primary-color);
-    color: var(--text-white);
+    background: var(--primary-color) !important;
+    color: var(--text-white) !important;
     padding: var(--spacing-xs) var(--spacing-sm);
     border-radius: 12px;
     font-size: 12px;
     font-weight: 600;
     margin-right: var(--spacing-sm);
+    display: inline-block !important;
+    visibility: visible !important;
 }
 
 .actions {
@@ -387,8 +436,12 @@ body {
 /* Empty State */
 .empty-state {
     text-align: center;
-    padding: var(--spacing-2xl);
+    padding: var(--spacing-xl);
     color: var(--text-secondary);
+    background: transparent;
+    position: relative;
+    display: block;
+    z-index: 1;
 }
 
 .empty-state i {
@@ -410,12 +463,20 @@ body {
 
 /* Course List */
 .courses-list {
-    max-height: 300px;
+    max-height: 400px;
     overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 50px;
+    display: block !important;
+    background: var(--bg-primary);
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .course-item {
-    display: flex;
+    display: flex !important;
     align-items: center;
     padding: var(--spacing-lg);
     border-bottom: 1px solid var(--border-color);
@@ -423,8 +484,14 @@ body {
     animation: slideInUp 0.5s ease-out forwards;
     position: relative;
     overflow: hidden;
-    opacity: 0;
-    transform: translateY(20px);
+    opacity: 1;
+    transform: translateY(0);
+    background: var(--bg-primary);
+    margin: 0;
+    min-height: 80px;
+    width: 100%;
+    box-sizing: border-box;
+    flex-wrap: nowrap;
 }
 
 .course-item:hover {
@@ -541,6 +608,9 @@ body {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xs);
+    min-width: 0;
+    overflow: hidden;
+    padding-left: var(--spacing-sm);
 }
 
 .course-name {
@@ -549,14 +619,19 @@ body {
     color: var(--text-primary);
     line-height: 1.4;
     margin-bottom: var(--spacing-xs);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
 }
 
 .course-details {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
     font-size: 12px;
     color: var(--text-secondary);
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .course-detail {
@@ -579,6 +654,8 @@ body {
     gap: var(--spacing-xs);
     opacity: 0;
     transition: opacity 0.2s ease;
+    flex-shrink: 0;
+    padding-right: var(--spacing-sm);
 }
 
 .course-item:hover .course-actions {
@@ -743,7 +820,7 @@ body {
 
 .footer-info {
     font-size: 12px;
-    color: var(--text-white);
+    color: var(--text-black);
     opacity: 0.8;
 }
 
@@ -867,4 +944,47 @@ body {
 
 .notification.info {
     background: var(--info-color);
+}
+
+/* Additional debugging and visibility fixes */
+#coursesSection {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 100px !important;
+    background: var(--bg-primary) !important;
+    border: 2px solid var(--primary-color) !important;
+    margin: 8px !important;
+    padding: 4px !important;
+    width: calc(100% - 16px) !important;
+    max-width: calc(420px - 16px) !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+}
+
+#coursesList {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: var(--bg-secondary) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+}
+
+#emptyState {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure all text is visible */
+.courses-section * {
+    color: var(--text-primary) !important;
+}
+
+.section-header * {
+    color: var(--text-primary) !important;
 }

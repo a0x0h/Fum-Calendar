@@ -12,6 +12,9 @@
   "host_permissions": [
     "*://pooya.um.ac.ir/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "content_scripts": [
     {
       "matches": ["*://pooya.um.ac.ir/*"],
